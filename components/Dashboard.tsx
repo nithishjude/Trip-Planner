@@ -41,7 +41,7 @@ export default function Dashboard({ onSubmit, isLoading, initialPrompt, onGoToLa
   const [recentTrips, setRecentTrips] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Load recent trips history
   useEffect(() => {
@@ -119,6 +119,7 @@ export default function Dashboard({ onSubmit, isLoading, initialPrompt, onGoToLa
     }
 
     if (isListening) {
+      // @ts-ignore
       recognitionRef.current?.stop();
       setIsListening(false);
       return;
@@ -132,12 +133,13 @@ export default function Dashboard({ onSubmit, isLoading, initialPrompt, onGoToLa
     recognition.onstart = () => setIsListening(true);
     recognition.onend = () => setIsListening(false);
     recognition.onerror = () => setIsListening(false);
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setPrompt((prev) => prev ? `${prev} ${transcript}` : transcript);
       textareaRef.current?.focus();
     };
 
+    // @ts-ignore
     recognitionRef.current = recognition;
     recognition.start();
   };
