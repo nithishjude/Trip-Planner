@@ -56,11 +56,46 @@ Trip-Planner/
     └── itinerary.ts             # TypeScript interfaces for the application state
 ```
 
+### System Architecture Workflow
+```mermaid
+graph TD
+    subgraph Client [Browser / React]
+        UI[User Interface]
+        State[App Status: Landing / Dashboard]
+        Board[Itinerary Board & Map]
+    end
+
+    subgraph Server [Next.js App Router]
+        API_Gen[/api/generate]
+        API_Ref[/api/refine]
+    end
+
+    subgraph External [Google Cloud]
+        Gemini[Gemini 2.5 Flash]
+    end
+
+    UI -->|1. Submit Prompt| API_Gen
+    API_Gen -->|2. Structured Prompt + Schema| Gemini
+    Gemini -->|3. Strict JSON Response| API_Gen
+    API_Gen -->|4. Clean JSON| Board
+    
+    Board -->|5. Refinement Instruction| API_Ref
+    API_Ref -->|6. Diff Prompt| Gemini
+    Gemini -->|7. Merged JSON| API_Ref
+    API_Ref -->|8. Updated State| Board
+
+    classDef nextjs fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef react fill:#61dafb,stroke:#333,stroke-width:2px,color:#000;
+    classDef gemini fill:#1a73e8,stroke:#fff,stroke-width:2px,color:#fff;
+    
+    class Server,API_Gen,API_Ref nextjs;
+    class Client,UI,State,Board react;
+    class External,Gemini gemini;
+```
+
 ---
 
-## 🧭 Complete Application Workflow
-
-TripEasy operates as a robust Client-Side State Machine managed by `page.tsx`. The application transitions fluidly between 5 distinct states:
+## 🧭 Application State Machine
 
 ```mermaid
 stateDiagram-v2
