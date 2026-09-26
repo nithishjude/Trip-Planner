@@ -66,8 +66,8 @@ graph TD
     end
 
     subgraph Server [Next.js App Router]
-        API_Gen[/api/generate]
-        API_Ref[/api/refine]
+        API_Gen["/api/generate"]
+        API_Ref["/api/refine"]
     end
 
     subgraph External [Google Cloud]
