@@ -60,7 +60,7 @@ Trip-Planner/
 ```mermaid
 graph LR
     User([User Prompt]) --> Frontend[Next.js Frontend]
-    Frontend --> API[/api/generate]
+    Frontend --> API["/api/generate"]
     API --> AI[Gemini 2.5 AI]
     AI -->|Returns JSON Itinerary| API
     API --> Frontend
