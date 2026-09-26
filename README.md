@@ -17,51 +17,96 @@ TripEasy is a modern, AI-powered travel planner that generates highly customized
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Complete Architecture
 
-TripEasy is built with modern web technologies, prioritizing speed, edge-compatibility, and seamless UX:
+TripEasy is built on a modern, serverless-first architecture optimized for speed, real-time AI generation, and a fluid, app-like user experience.
 
-- **Framework:** [Next.js 15 (App Router)](https://nextjs.org/)
-- **Styling:** Vanilla CSS (`globals.css`) + Tailwind CSS (hybrid approach for maximum design flexibility).
-- **Language:** TypeScript
-- **State Management:** React Hooks (`useState`, `useRef`, `useCallback`)
-- **Maps:** `react-leaflet` / Leaflet
-- **Icons & Visuals:** Inline SVGs, CSS Gradients, and Glassmorphism effects.
+### Tech Stack
+- **Frontend Framework:** Next.js 15 (App Router)
+- **Language:** TypeScript (Strict Mode)
+- **Styling:** Vanilla CSS (`globals.css`) + Tailwind CSS (hybrid approach)
+- **Mapping:** Leaflet & `react-leaflet` (Dynamic client-side rendering)
+- **Drag-and-Drop:** `@dnd-kit/core` & `@dnd-kit/sortable`
+- **AI Integration:** `@google/genai` (Gemini 2.5 Flash) via Next.js Route Handlers
+- **State Management:** React Hooks (`useState`, `useRef`, `useCallback`) + `localStorage` for session persistence
 
-### Data Flow
-
-1. **Input:** The user submits a prompt via the Landing Page or Dashboard (e.g., "3 days in Paris").
-2. **Generation:** The prompt is sent to the `/api/generate` Next.js Route Handler.
-3. **AI Processing:** The API calls an LLM (e.g., Gemini) to generate a structured JSON itinerary.
-4. **Rendering:** The client receives the JSON, parses it, and updates the `AppStatus` to `ready`, rendering the `ItineraryBoard` and `MapPane`.
-5. **Refinement:** The user submits a refinement query. The `/api/refine` route merges the new instructions with the existing JSON state and returns the updated itinerary.
+### Core Components Structure
+```text
+Trip-Planner/
+├── app/
+│   ├── page.tsx                 # Main orchestrator & state machine
+│   ├── layout.tsx               # Root HTML layout and fonts
+│   ├── globals.css              # Global styles, animations, and Tailwind imports
+│   └── api/
+│       ├── generate/route.ts    # POST endpoint for initial trip generation
+│       └── refine/route.ts      # POST endpoint for conversational updates
+├── components/
+│   ├── PromptInput.tsx          # Marketing landing page & initial prompt
+│   ├── Dashboard.tsx            # App interface, chat history, and voice input
+│   ├── ItineraryBoard.tsx       # Split-pane workspace (List + Map)
+│   ├── DayTabs.tsx              # Day navigation and draggable stops
+│   ├── StopCard.tsx             # Expandable location cards with images
+│   ├── MapPaneInner.tsx         # Leaflet map logic, animated routes, and markers
+│   ├── RefinementBar.tsx        # Inline chat interface for AI refinement
+│   └── LoadingSkeleton.tsx      # Shimmer UI shown during AI generation
+├── lib/
+│   ├── schema.ts                # Zod/Type definitions for the AI JSON output
+│   └── utils.ts                 # Helper functions (e.g., ID generation)
+└── types/
+    └── itinerary.ts             # TypeScript interfaces for the application state
+```
 
 ---
 
-## 🧭 Workflow and Key Components
+## 🧭 Complete Application Workflow
 
-The app follows a state-machine driven workflow defined by `AppStatus` (`"landing" | "empty" | "loading" | "ready" | "refining" | "error"`):
+TripEasy operates as a robust Client-Side State Machine managed by `page.tsx`. The application transitions fluidly between 5 distinct states:
 
-1. **`PromptInput.tsx` (Status: `landing`)**
-   - The initial marketing page.
-   - Features parallax scrolling, feature highlights, and inspiration cards.
-   - Submitting a prompt transitions the app to the Dashboard.
+```mermaid
+stateDiagram-v2
+    [*] --> Landing : App Load (No Session)
+    [*] --> Dashboard : App Load (Session Exists)
+    
+    Landing --> Dashboard : Click "Start Chatting" (Empty)
+    Landing --> Dashboard : Type Prompt & Hit Enter
+    
+    Dashboard --> Loading : Submit Prompt
+    Loading --> Ready : AI JSON Response
+    Loading --> Error : Network/Parse Failure
+    
+    Error --> Dashboard : Click Retry
+    
+    Ready --> Refining : Submit Refinement Chat
+    Refining --> Ready : AI Updates JSON
+```
 
-2. **`Dashboard.tsx` (Status: `empty`)**
-   - A dark-themed, chat-like interface.
-   - Contains navigation, recent trip history, filter pills, and a pinned input box (with Voice Input support).
-   - Submitting the final prompt here triggers the generation API.
+### 1. The Entry Point (Landing State)
+Users arrive at the white-themed, heavily animated landing page (`PromptInput.tsx`). They are greeted with parallax scrolling, floating destination cards, and a prominent search bar. 
+- Typing a prompt here and hitting enter immediately navigates them to the App Dashboard, carrying their text with them.
 
-3. **`page.tsx` (Status: `loading`)**
-   - Orchestrates the transitions.
-   - Shows a beautiful `LoadingSkeleton` while waiting for the AI response.
+### 2. The App Interface (Dashboard / Empty State)
+The user enters `Dashboard.tsx`, a dark-themed, highly focused chat interface.
+- It pulls up their recent trips from `localStorage`.
+- Users can click filter pills (Where, When, Who, Budget) to construct their perfect prompt.
+- The input supports **Web Speech API** for voice-to-text dictation.
+- Submitting the prompt triggers `generate()` in `page.tsx`.
 
-4. **`ItineraryBoard.tsx` (Status: `ready` / `refining`)**
-   - The main workspace split into two panes:
-     - **Left Pane:** The list of days and draggable `StopCard` components.
-     - **Right Pane:** The `MapPaneInner` rendering Leaflet maps and animated route lines.
-   - Includes a sticky header for exporting to PDF and quick booking links.
-   - Includes the `RefinementBar` to continue chatting with the AI to adjust the plan.
+### 3. AI Generation (Loading State)
+The UI transitions to a `LoadingSkeleton` while a `POST` request is fired to `/api/generate`.
+- **Backend:** The Route Handler uses `gemini-2.5-flash` with `responseSchema` enforced. The model is strictly instructed to return a JSON object matching the `Itinerary` type.
+- **Resilience:** If the API takes longer than 6 seconds, the UI escalates the loading message to assure the user the AI is "thinking deeply".
+
+### 4. Interactive Workspace (Ready State)
+Once the JSON is received, it is parsed, assigned unique IDs, and rendered in `ItineraryBoard.tsx`.
+- **Left Pane:** Displays days as tabs. Stops are rendered as `StopCard` components that can be expanded to view AI-generated descriptions and photos. Stops can be drag-and-dropped using `@dnd-kit`.
+- **Right Pane:** The `MapPaneInner` initializes Leaflet. It calculates map bounds based on hardcoded coordinates for major cities and renders SVG markers. Animated dashed lines (`.animated-route`) connect the stops in chronological order.
+- **Interaction:** Clicking a map pin auto-scrolls the left pane to the corresponding `StopCard` and expands it.
+
+### 5. Conversational Refinement (Refining State)
+If the user isn't satisfied (e.g., "Make day 1 cheaper"), they use the `RefinementBar` at the bottom of the board.
+- The current `Itinerary` JSON and the new text instruction are sent to `/api/refine`.
+- The AI is instructed to modify the JSON structure while strictly maintaining the "name" of stops that shouldn't change.
+- The client receives the diffed JSON, seamlessly swaps the state, and a success toast confirms the AI's changes.
 
 ---
 
